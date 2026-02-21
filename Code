@@ -1,1 +1,90 @@
-hii
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+from sklearn.model_selection import train_test_split
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
+
+df = pd.read_csv("Species.csv")
+
+print(df.head())
+
+print(df.info())
+
+print(df.describe())
+
+df.columns
+
+df.describe()
+
+df.isna().sum()
+
+df.columns = df.columns.str.strip()
+df.replace('-', 0, inplace=True)
+numeric_cols = ['EX', 'EW', 'CR', 'EN', 'VU', 'Total']
+for col in numeric_cols:
+    df[col] = df[col].astype(str).str.replace(',', '').astype(float)
+
+df['Risk_Score'] = df['EX'] + df['EW'] + df['CR'] + df['EN'] + df['VU']
+
+def risk_level(score):
+    if score < 100:
+        return 'Low'
+    elif score < 1000:
+        return 'Medium'
+    else:
+        return 'High'
+df['Extinction_Risk_Level'] = df['Risk_Score'].apply(risk_level)
+
+def extinction_status(row):
+    if row['EX'] > 0 or row['EW'] > 0:
+        return 'Extinct'
+    elif row['CR'] > 0 or row['EN'] > 0 or row['VU'] > 0:
+        return 'Endangered'
+    else:
+        return 'Safe'
+df['Extinction_Status'] = df.apply(extinction_status, axis=1)
+
+print(df[['Name', 'Risk_Score', 'Extinction_Risk_Level', 'Extinction_Status']].head())
+
+print(df.info())
+
+print(df.describe())
+
+plt.figure(figsize=(6,4))
+sns.countplot(x='Extinction_Risk_Level', data=df, palette='coolwarm')
+plt.title('Count of Extinction Risk Levels')
+plt.show()
+
+plt.figure(figsize=(6,4))
+sns.countplot(x='Extinction_Status', data=df, palette='Set2')
+plt.title('Count of Extinction Status (Extinct / Endangered / Safe)')
+plt.show()
+
+plt.figure(figsize=(10,5))
+sns.barplot(x='Name', y='Risk_Score', data=df, palette='viridis')
+plt.xticks(rotation=90)
+plt.title('Risk Score by Animal Group')
+plt.show()
+
+X = df[['EX', 'EW', 'CR', 'EN', 'VU', 'Total']]
+y = df['Extinction_Status']
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.25, random_state=42)
+
+model = RandomForestClassifier(random_state=42)
+model.fit(X_train, y_train)
+
+y_pred = model.predict(X_test)
+
+accuracy = accuracy_score(y_test, y_pred)
+print(f"\n Model Accuracy: {accuracy*100:.2f}%")
+print("\n Classification Report:")
+print(classification_report(y_test, y_pred))
+
+plt.figure(figsize=(5,4))
+sns.heatmap(confusion_matrix(y_test, y_pred), annot=True, fmt='d', cmap='Blues')
+plt.title("Confusion Matrix")
+plt.xlabel("Predicted")
+plt.ylabel("Actual")
+plt.show()
